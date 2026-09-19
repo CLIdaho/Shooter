@@ -65,6 +65,11 @@ class ShooterCameraView(
   private var manualWhiteBalanceTemperature: Double? = null
   private var manualWhiteBalanceTint: Double = 0.0
 
+  private var previewGeneration = 0
+  private var previewStreaming = false
+  private var previewRetryAttempted = false
+  private var pendingOnStream: (() -> Unit)? = null
+
   init {
     addView(previewView)
 
@@ -302,12 +307,17 @@ class ShooterCameraView(
   }
 
   fun destroy() {
+    previewGeneration += 1
+    pendingOnStream = null
     cameraProvider?.unbindAll()
     camera = null
     imageCapture = null
   }
 
-  private fun bindCamera(onBound: (() -> Unit)? = null) {
+  private fun bindCamera(
+    onBound: (() -> Unit)? = null,
+    isPreviewRetry: Boolean = false
+  ) {
     val provider = cameraProvider ?: return
     val lifecycleOwner = appContext.currentActivity as? LifecycleOwner
 
@@ -315,6 +325,17 @@ class ShooterCameraView(
       emitError("E_NO_LIFECYCLE", "Shooter could not find an Android lifecycle owner.")
       return
     }
+
+    if (!isPreviewRetry) {
+      previewRetryAttempted = false
+      previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+      pendingOnStream = onBound
+    } else if (onBound != null) {
+      pendingOnStream = onBound
+    }
+
+    previewStreaming = false
+    val generation = ++previewGeneration
 
     val candidateInfo = candidateCameraInfo()
     val rawFormats = supportedRawFormats(candidateInfo)
@@ -343,6 +364,27 @@ class ShooterCameraView(
     }
 
     try {
+      previewView.previewStreamState.removeObservers(lifecycleOwner)
+      previewView.previewStreamState.observe(lifecycleOwner) { state ->
+        if (generation != previewGeneration) {
+          return@observe
+        }
+
+        if (state == PreviewView.StreamState.STREAMING && !previewStreaming) {
+          previewStreaming = true
+          onCameraReady(
+            mapOf(
+              "ready" to true,
+              "implementationMode" to previewView.implementationMode.name
+            )
+          )
+
+          val callback = pendingOnStream
+          pendingOnStream = null
+          callback?.invoke()
+        }
+      }
+
       provider.unbindAll()
 
       val selector = cameraSelector()
@@ -357,11 +399,28 @@ class ShooterCameraView(
 
       applyManualControls()
       setZoomNormalized(zoomNormalized.toDouble())
-
-      onCameraReady(mapOf("ready" to true))
       emitCapabilities()
 
-      onBound?.invoke()
+      previewView.postDelayed({
+        if (
+          generation != previewGeneration ||
+          previewStreaming ||
+          camera == null
+        ) {
+          return@postDelayed
+        }
+
+        if (!previewRetryAttempted) {
+          previewRetryAttempted = true
+          previewView.implementationMode = PreviewView.ImplementationMode.PERFORMANCE
+          bindCamera(isPreviewRetry = true)
+        } else {
+          emitError(
+            "E_PREVIEW_TIMEOUT",
+            "CameraX bound successfully but PreviewView never reached STREAMING in either compatible or performance mode."
+          )
+        }
+      }, 1800L)
     } catch (error: Throwable) {
       emitError("E_CAMERA_BIND", error.message ?: "Unable to bind the selected camera.")
     }
