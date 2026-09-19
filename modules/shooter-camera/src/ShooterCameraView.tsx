@@ -18,12 +18,12 @@ export type CameraCapabilities = {
   supportsManualFocus: boolean;
   supportsManualWhiteBalance: boolean;
   supportsRaw: boolean;
-  minISO: number | null;
-  maxISO: number | null;
-  minShutterSeconds: number | null;
-  maxShutterSeconds: number | null;
-  minExposureBias: number | null;
-  maxExposureBias: number | null;
+  minISO?: number | null;
+  maxISO?: number | null;
+  minShutterSeconds?: number | null;
+  maxShutterSeconds?: number | null;
+  minExposureBias?: number | null;
+  maxExposureBias?: number | null;
   maxZoom: number;
   lenses: CameraLens[];
 };
