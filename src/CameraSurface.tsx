@@ -72,6 +72,7 @@ export const CameraSurface = forwardRef<CameraSurfaceHandle, Props>(
     ref,
   ) {
     const expoRef = useRef<CameraView>(null);
+    const expoReadyRef = useRef(false);
     const nativeRef = useRef<ShooterNativeCameraViewHandle>(null);
     const nativeReadyRef = useRef(false);
 
@@ -119,6 +120,23 @@ export const CameraSurface = forwardRef<CameraSurfaceHandle, Props>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mode, nativeCandidate]);
 
+    async function captureWithExpo(): Promise<NativeCaptureResult | null> {
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        if (expoRef.current && expoReadyRef.current) {
+          const result = await expoRef.current.takePictureAsync({
+            quality: 0.96,
+            shutterSound: true,
+          });
+
+          return result?.uri ? { uri: result.uri } : null;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+
+      return null;
+    }
+
     function requireNative() {
       if (!nativeRef.current || nativeFailed) {
         throw new Error(
@@ -134,15 +152,32 @@ export const CameraSurface = forwardRef<CameraSurfaceHandle, Props>(
       () => ({
         async takePhoto() {
           if (useNativePhotoEngine) {
-            return (await nativeRef.current?.takePhoto(rawEnabled)) ?? null;
+            try {
+              return (await nativeRef.current?.takePhoto(rawEnabled)) ?? null;
+            } catch (error) {
+              const message =
+                error instanceof Error
+                  ? error.message
+                  : 'Native photo capture failed.';
+
+              expoReadyRef.current = false;
+              setNativeFailed(true);
+
+              onNativeError?.({
+                code: 'E_NATIVE_CAPTURE',
+                message,
+              });
+              onEngineStatus?.({
+                engine: 'expo',
+                state: 'fallback',
+                reason: 'E_NATIVE_CAPTURE',
+              });
+
+              return captureWithExpo();
+            }
           }
 
-          const result = await expoRef.current?.takePictureAsync({
-            quality: 0.96,
-            shutterSound: true,
-          });
-
-          return result?.uri ? { uri: result.uri } : null;
+          return captureWithExpo();
         },
 
         async startRecording() {
@@ -241,6 +276,16 @@ export const CameraSurface = forwardRef<CameraSurfaceHandle, Props>(
         mode={mode === 'video' ? 'video' : 'picture'}
         flash={flash}
         zoom={zoom}
+        onCameraReady={() => {
+          expoReadyRef.current = true;
+          if (nativeFailed) {
+            onEngineStatus?.({
+              engine: 'expo',
+              state: 'fallback',
+              reason: 'SAFE_PREVIEW',
+            });
+          }
+        }}
       />
     );
   },
