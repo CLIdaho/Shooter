@@ -292,8 +292,8 @@ export default function App() {
     }
 
     if (
-      nativeCapabilities.minExposureBias === null ||
-      nativeCapabilities.maxExposureBias === null
+      nativeCapabilities.minExposureBias == null ||
+      nativeCapabilities.maxExposureBias == null
     ) {
       disabled.push('ev');
     }
