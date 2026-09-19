@@ -4,8 +4,10 @@ import {
 } from 'expo-camera';
 import React, {
   forwardRef,
+  useEffect,
   useImperativeHandle,
   useRef,
+  useState,
 } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
 import {
@@ -17,6 +19,12 @@ import {
 } from '../modules/shooter-camera';
 
 export type CameraSurfaceMode = 'photo' | 'video';
+
+export type CameraEngineStatus = {
+  engine: 'native' | 'expo';
+  state: 'starting' | 'ready' | 'fallback';
+  reason?: string;
+};
 
 export type CameraSurfaceHandle = {
   takePhoto(): Promise<NativeCaptureResult | null>;
@@ -43,7 +51,10 @@ type Props = {
   rawEnabled?: boolean;
   onCapabilities?: (capabilities: CameraCapabilities) => void;
   onNativeError?: (error: { code: string; message: string }) => void;
+  onEngineStatus?: (status: CameraEngineStatus) => void;
 };
+
+const NATIVE_PREVIEW_TIMEOUT_MS = 5200;
 
 export const CameraSurface = forwardRef<CameraSurfaceHandle, Props>(
   function CameraSurface(
@@ -56,19 +67,62 @@ export const CameraSurface = forwardRef<CameraSurfaceHandle, Props>(
       rawEnabled = false,
       onCapabilities,
       onNativeError,
+      onEngineStatus,
     },
     ref,
   ) {
     const expoRef = useRef<CameraView>(null);
     const nativeRef = useRef<ShooterNativeCameraViewHandle>(null);
+    const nativeReadyRef = useRef(false);
 
-    const useNativePhotoEngine =
+    const [nativeFailed, setNativeFailed] = useState(false);
+
+    const nativeCandidate =
       mode === 'photo' && isShooterNativeCameraAvailable;
+    const useNativePhotoEngine = nativeCandidate && !nativeFailed;
+
+    useEffect(() => {
+      nativeReadyRef.current = false;
+
+      if (!nativeCandidate) {
+        setNativeFailed(false);
+        onEngineStatus?.({
+          engine: 'expo',
+          state: 'ready',
+          reason: mode === 'video' ? 'VIDEO_ENGINE' : 'NATIVE_UNAVAILABLE',
+        });
+        return;
+      }
+
+      setNativeFailed(false);
+      onEngineStatus?.({ engine: 'native', state: 'starting' });
+
+      const timeout = setTimeout(() => {
+        if (nativeReadyRef.current) return;
+
+        setNativeFailed(true);
+        onEngineStatus?.({
+          engine: 'expo',
+          state: 'fallback',
+          reason: 'E_NATIVE_PREVIEW_TIMEOUT',
+        });
+        onNativeError?.({
+          code: 'E_NATIVE_PREVIEW_TIMEOUT',
+          message:
+            'The native camera bound but did not confirm a streaming preview. Shooter switched to the Expo camera fallback.',
+        });
+      }, NATIVE_PREVIEW_TIMEOUT_MS);
+
+      return () => clearTimeout(timeout);
+    // Callback identities can change when the parent re-renders. They must not
+    // restart the native-camera watchdog or clear a fallback decision.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mode, nativeCandidate]);
 
     function requireNative() {
-      if (!nativeRef.current) {
+      if (!nativeRef.current || nativeFailed) {
         throw new Error(
-          'This control requires the Shooter native camera engine and a development/native build.',
+          'This control requires the Shooter native camera engine and an active native preview.',
         );
       }
 
@@ -140,7 +194,7 @@ export const CameraSurface = forwardRef<CameraSurfaceHandle, Props>(
           return requireNative().resetControls();
         },
       }),
-      [rawEnabled, useNativePhotoEngine],
+      [nativeFailed, rawEnabled, useNativePhotoEngine],
     );
 
     if (useNativePhotoEngine) {
@@ -152,8 +206,29 @@ export const CameraSurface = forwardRef<CameraSurfaceHandle, Props>(
           flash={flash}
           zoom={zoom}
           rawEnabled={rawEnabled}
+          onCameraReady={() => {
+            nativeReadyRef.current = true;
+            onEngineStatus?.({ engine: 'native', state: 'ready' });
+          }}
           onCapabilities={(event) => onCapabilities?.(event.nativeEvent)}
-          onError={(event) => onNativeError?.(event.nativeEvent)}
+          onError={(event) => {
+            const error = event.nativeEvent;
+            onNativeError?.(error);
+
+            if (
+              error.code === 'E_CAMERA_PROVIDER' ||
+              error.code === 'E_NO_LIFECYCLE' ||
+              error.code === 'E_CAMERA_BIND' ||
+              error.code === 'E_PREVIEW_TIMEOUT'
+            ) {
+              setNativeFailed(true);
+              onEngineStatus?.({
+                engine: 'expo',
+                state: 'fallback',
+                reason: error.code,
+              });
+            }
+          }}
         />
       );
     }
