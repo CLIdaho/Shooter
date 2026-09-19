@@ -443,8 +443,6 @@ export default function App() {
           setZoom(0);
           break;
 
-        case 'back':
-          break;
       }
     },
     [
