@@ -13,28 +13,58 @@ The live image owns the screen. Permanent chrome should be reduced to state, not
 | Pinch | Continuous zoom |
 | Long press | Materialize the radial control wheel under the finger |
 | Hold + drag | Select a wheel control |
-| Release | Apply the selection and dismiss the wheel |
+| Continue through Pro | Enter the native professional-control ring without lifting |
+| Pull inward/outward in a Pro wedge | Set that control's value |
+| Release | Commit the selection/value and dismiss the wheel |
 | Swipe right from the left screen edge | Open the local Shooter gallery |
 
-## Radial controls
+## Root wheel
 
-The first working wheel contains controls that can be honored by the current Expo camera layer:
+The root ring intentionally stays small:
 
-- Photo / Video capture mode
+- Photo
+- Video
 - Flash
-- Front/back camera
 - Grid
 - Timer
-- Zoom preset
-- Reset to Auto
+- Front/back camera
+- Zoom
+- Pro
 
-Manual shutter speed, ISO, focus distance, white balance, RAW and physical-lens selection belong in the native camera-engine phase rather than being represented as fake controls.
+There is still no permanent settings toolbar.
+
+## Pro ring
+
+Dragging through **Pro** transforms the wheel in-place. The same continuous gesture exposes:
+
+- ISO
+- Shutter speed
+- Manual focus
+- White-balance temperature
+- Exposure compensation
+- RAW
+- Physical/available lens cycling
+- Auto reset
+- Back/cancel
+
+Adjustable controls use radial distance as the value axis. Shooter previews the value beneath the wheel while the finger is held, then commits it on release. Unsupported controls remain visually disabled instead of pretending to work.
+
+The Pro ring is capability-driven. It only enables a control when the native camera engine reports support from the active phone/camera.
+
+## Native implementation
+
+Photo mode prefers Shooter's local native camera module when it is present in a development/production build:
+
+- iOS: AVFoundation
+- Android: CameraX + Camera2 interop
+
+The Expo camera surface remains a fallback and currently handles video while native video capture is still being built.
 
 ## Gallery
 
 There is intentionally **no gallery button on the camera screen**. The left edge is the gallery affordance. A rightward edge swipe transitions into Shots; swiping right inside Shots returns to the camera.
 
-Captured media is copied from the camera cache into the app's document directory, so the core capture and gallery flow does not require network access or a cloud account.
+Captured media is copied from the camera cache into the app's document directory, so the core capture and gallery flow does not require network access or a cloud account. When RAW+processed capture is enabled, the DNG is stored beside its processed image and deleted with that shot.
 
 ## Design principles
 
@@ -42,4 +72,5 @@ Captured media is copied from the camera cache into the app's document directory
 2. Controls appear at the point of intent.
 3. Release returns the user to photography.
 4. Common actions become muscle memory.
-5. Offline is the default, not a degraded mode.
+5. Unsupported hardware features never masquerade as working controls.
+6. Offline is the default, not a degraded mode.
