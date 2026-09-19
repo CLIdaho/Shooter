@@ -619,9 +619,12 @@ export default function App() {
           void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         })
         .onUpdate((event) => {
-          const point = wheelPointRef.current;
-          const dx = event.x - point.x;
-          const dy = event.y - point.y;
+          // Selection must follow the user's drag from the original long-press
+          // point, not the clamped visual wheel center. The wheel may be shifted
+          // away from screen edges, while translationX/Y always represent the
+          // actual finger movement from the gesture origin.
+          const dx = event.translationX;
+          const dy = event.translationY;
           const distance = Math.hypot(dx, dy);
 
           if (wheelLayerRef.current === 'root') {
