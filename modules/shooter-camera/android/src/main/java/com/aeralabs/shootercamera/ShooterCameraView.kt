@@ -257,7 +257,7 @@ class ShooterCameraView(
 
     if (wantsRaw && activeOutputFormat == ImageCapture.OUTPUT_FORMAT_JPEG) {
       if (!supportsRaw(candidateCameraInfo())) {
-        promise.reject("E_RAW_UNSUPPORTED", "RAW capture is not supported by this camera.")
+        promise.reject("E_RAW_UNSUPPORTED", "RAW capture is not supported by this camera.", null)
         return
       }
 
@@ -381,7 +381,7 @@ class ShooterCameraView(
   private fun captureBoundPhoto(promise: Promise) {
     val capture = imageCapture
     if (capture == null) {
-      promise.reject("E_CAMERA_NOT_READY", "The camera is not ready.")
+      promise.reject("E_CAMERA_NOT_READY", "The camera is not ready.", null)
       return
     }
 
@@ -427,7 +427,7 @@ class ShooterCameraView(
             override fun onError(exception: ImageCaptureException) {
               if (resolved) return
               resolved = true
-              promise.reject("E_CAPTURE", exception.message ?: "RAW capture failed.")
+              promise.reject("E_CAPTURE", exception.message ?: "RAW capture failed.", exception)
             }
           }
         )
@@ -447,7 +447,7 @@ class ShooterCameraView(
             }
 
             override fun onError(exception: ImageCaptureException) {
-              promise.reject("E_CAPTURE", exception.message ?: "RAW capture failed.")
+              promise.reject("E_CAPTURE", exception.message ?: "RAW capture failed.", exception)
             }
           }
         )
@@ -466,7 +466,7 @@ class ShooterCameraView(
             }
 
             override fun onError(exception: ImageCaptureException) {
-              promise.reject("E_CAPTURE", exception.message ?: "Photo capture failed.")
+              promise.reject("E_CAPTURE", exception.message ?: "Photo capture failed.", exception)
             }
           }
         )
@@ -619,31 +619,32 @@ class ShooterCameraView(
       )
     } ?: emptyList()
 
-    onCapabilities(
-      mapOf(
-        "platform" to "android",
-        "supportsManualExposure" to manualSensor,
-        "supportsManualFocus" to (manualSensor && minimumFocusDistance > 0f),
-        "supportsManualWhiteBalance" to manualPost,
-        "supportsRaw" to supportsRaw(activeCamera.cameraInfo),
-        "minISO" to isoRange?.lower?.toDouble(),
-        "maxISO" to isoRange?.upper?.toDouble(),
-        "minShutterSeconds" to shutterRange?.lower?.div(1_000_000_000.0),
-        "maxShutterSeconds" to shutterRange?.upper?.div(1_000_000_000.0),
-        "minExposureBias" to if (exposureState.isExposureCompensationSupported) {
-          exposureRange.lower * exposureStep
-        } else {
-          null
-        },
-        "maxExposureBias" to if (exposureState.isExposureCompensationSupported) {
-          exposureRange.upper * exposureStep
-        } else {
-          null
-        },
-        "maxZoom" to (zoomState?.maxZoomRatio?.toDouble() ?: 1.0),
-        "lenses" to lenses
-      )
+    val payload = mutableMapOf<String, Any>(
+      "platform" to "android",
+      "supportsManualExposure" to manualSensor,
+      "supportsManualFocus" to (manualSensor && minimumFocusDistance > 0f),
+      "supportsManualWhiteBalance" to manualPost,
+      "supportsRaw" to supportsRaw(activeCamera.cameraInfo),
+      "maxZoom" to (zoomState?.maxZoomRatio?.toDouble() ?: 1.0),
+      "lenses" to lenses
     )
+
+    isoRange?.let {
+      payload["minISO"] = it.lower.toDouble()
+      payload["maxISO"] = it.upper.toDouble()
+    }
+
+    shutterRange?.let {
+      payload["minShutterSeconds"] = it.lower / 1_000_000_000.0
+      payload["maxShutterSeconds"] = it.upper / 1_000_000_000.0
+    }
+
+    if (exposureState.isExposureCompensationSupported) {
+      payload["minExposureBias"] = exposureRange.lower * exposureStep
+      payload["maxExposureBias"] = exposureRange.upper * exposureStep
+    }
+
+    onCapabilities(payload)
   }
 
   private fun temperatureToGains(temperature: Double, tint: Double): RggbChannelVector {
