@@ -6,6 +6,10 @@ version = '0.1.0'
 
 android {
   namespace "com.aeralabs.shootercamera"
+
+  defaultConfig {
+    versionName "0.1.0"
+  }
 }
 
 dependencies {
