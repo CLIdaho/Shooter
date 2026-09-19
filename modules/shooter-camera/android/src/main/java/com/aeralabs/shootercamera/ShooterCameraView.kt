@@ -68,6 +68,11 @@ class ShooterCameraView(
   init {
     addView(previewView)
 
+    // ExpoView/React Native does not guarantee that a programmatically-added
+    // Android child view will be laid out to our bounds. CameraX can bind
+    // successfully while PreviewView remains 0x0, producing a black preview.
+    previewView.layout(0, 0, width, height)
+
     val future = ProcessCameraProvider.getInstance(context)
     future.addListener({
       try {
@@ -77,6 +82,31 @@ class ShooterCameraView(
         emitError("E_CAMERA_PROVIDER", error.message ?: "Unable to initialize CameraX.")
       }
     }, mainExecutor)
+  }
+
+  override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+    super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+    val measuredWidth = MeasureSpec.getSize(widthMeasureSpec)
+    val measuredHeight = MeasureSpec.getSize(heightMeasureSpec)
+    previewView.measure(
+      MeasureSpec.makeMeasureSpec(measuredWidth, MeasureSpec.EXACTLY),
+      MeasureSpec.makeMeasureSpec(measuredHeight, MeasureSpec.EXACTLY)
+    )
+    setMeasuredDimension(measuredWidth, measuredHeight)
+  }
+
+  override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+    previewView.layout(0, 0, right - left, bottom - top)
+  }
+
+  override fun onAttachedToWindow() {
+    super.onAttachedToWindow()
+    post {
+      previewView.layout(0, 0, width, height)
+      if (cameraProvider != null && camera == null) {
+        bindCamera()
+      }
+    }
   }
 
   fun setFacing(value: String) {
