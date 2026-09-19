@@ -1,6 +1,16 @@
 name: Native Android
 
 on:
+  push:
+    branches:
+      - "build/**"
+    paths:
+      - "modules/shooter-camera/**"
+      - "src/CameraSurface.tsx"
+      - "App.tsx"
+      - "app.json"
+      - "package.json"
+      - ".github/workflows/native-android.yml"
   pull_request:
     paths:
       - "modules/shooter-camera/**"
