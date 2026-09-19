@@ -110,7 +110,7 @@ export function GalleryScreen({ shots, onClose, onChanged }: Props) {
                   onPress={() => setSelected(item)}
                 >
                   {item.kind === 'photo' ? (
-                    <Image source={{ uri: item.uri }} style={StyleSheet.absoluteFillObject} />
+                    <Image source={{ uri: item.uri }} style={styles.tileImage} />
                   ) : (
                     <View style={styles.videoTile}>
                       <Ionicons name="videocam" size={24} color="#fff" />
@@ -163,6 +163,13 @@ const styles = StyleSheet.create({
     height: TILE * 1.24,
     backgroundColor: '#111',
     overflow: 'hidden',
+  },
+  tileImage: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
   },
   videoTile: {
     flex: 1,
