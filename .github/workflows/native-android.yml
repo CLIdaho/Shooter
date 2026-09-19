@@ -7,6 +7,7 @@ on:
       - "build/**"
     paths:
       - "modules/shooter-camera/**"
+      - "assets/**"
       - "src/**"
       - "App.tsx"
       - "app.json"
@@ -16,6 +17,7 @@ on:
   pull_request:
     paths:
       - "modules/shooter-camera/**"
+      - "assets/**"
       - "src/**"
       - "App.tsx"
       - "app.json"
