@@ -269,18 +269,20 @@ export default function App() {
     );
   }, []);
 
+  const facingLenses = useMemo(
+    () =>
+      nativeCapabilities?.lenses.filter((lens) => lens.facing === facing) ?? [],
+    [facing, nativeCapabilities],
+  );
+
+  const disabledRootActions = useMemo<WheelAction[]>(
+    () => (facingLenses.length <= 1 ? ['lens'] : []),
+    [facingLenses.length],
+  );
+
   const disabledProActions = useMemo<ProWheelAction[]>(() => {
     if (captureMode !== 'photo' || !nativeCapabilities) {
-      return [
-        'iso',
-        'shutter',
-        'focus',
-        'wb',
-        'ev',
-        'raw',
-        'lens',
-        'auto',
-      ];
+      return ['iso', 'shutter', 'focus', 'wb', 'ev', 'raw', 'auto'];
     }
 
     const disabled: ProWheelAction[] = [];
@@ -308,26 +310,137 @@ export default function App() {
       disabled.push('raw');
     }
 
-    const facingLenses = nativeCapabilities.lenses.filter(
-      (lens) => lens.facing === facing,
-    );
-    if (facingLenses.length <= 1) {
-      disabled.push('lens');
-    }
-
     return disabled;
-  }, [captureMode, facing, nativeCapabilities]);
+  }, [captureMode, nativeCapabilities]);
+
+  const proIsActive =
+    manualISO !== null ||
+    manualShutter !== null ||
+    manualFocus !== null ||
+    whiteBalanceTemperature !== null ||
+    exposureBias !== 0 ||
+    rawEnabled;
+
+  const activeRootActions = useMemo<WheelAction[]>(
+    () => [
+      captureMode,
+      ...(flash !== 'off' ? (['flash'] as WheelAction[]) : []),
+      ...(timerSeconds > 0 ? (['timer'] as WheelAction[]) : []),
+      ...(grid ? (['grid'] as WheelAction[]) : []),
+      ...(activeLensId ? (['lens'] as WheelAction[]) : []),
+      ...(proIsActive ? (['pro'] as WheelAction[]) : []),
+    ],
+    [activeLensId, captureMode, flash, grid, proIsActive, timerSeconds],
+  );
+
+  const activeProActions = useMemo<ProWheelAction[]>(
+    () => [
+      ...(manualISO !== null ? (['iso'] as ProWheelAction[]) : []),
+      ...(manualShutter !== null ? (['shutter'] as ProWheelAction[]) : []),
+      ...(manualFocus !== null ? (['focus'] as ProWheelAction[]) : []),
+      ...(whiteBalanceTemperature !== null ? (['wb'] as ProWheelAction[]) : []),
+      ...(exposureBias !== 0 ? (['ev'] as ProWheelAction[]) : []),
+      ...(rawEnabled ? (['raw'] as ProWheelAction[]) : []),
+    ],
+    [
+      exposureBias,
+      manualFocus,
+      manualISO,
+      manualShutter,
+      rawEnabled,
+      whiteBalanceTemperature,
+    ],
+  );
+
+  const rootStateLabels = useMemo(
+    () => ({
+      photo: captureMode === 'photo' ? 'ACTIVE' : 'MODE',
+      video: captureMode === 'video' ? 'ACTIVE' : 'MODE',
+      flash: flash.toUpperCase(),
+      timer: timerSeconds === 0 ? 'OFF' : `${timerSeconds}S`,
+      grid: grid ? 'ON' : 'OFF',
+      flip: facing.toUpperCase(),
+      lens:
+        facingLenses.find((lens) => lens.id === activeLensId)?.name ??
+        (facingLenses.length > 1 ? 'NEXT' : 'N/A'),
+      pro: proIsActive ? 'MANUAL' : 'AUTO',
+    }),
+    [
+      activeLensId,
+      captureMode,
+      facing,
+      facingLenses,
+      flash,
+      grid,
+      proIsActive,
+      timerSeconds,
+    ],
+  );
+
+  const proStateLabels = useMemo(
+    () => ({
+      iso: manualISO !== null ? String(Math.round(manualISO)) : 'AUTO',
+      shutter:
+        manualShutter !== null ? formatShutter(manualShutter) : 'AUTO',
+      focus:
+        manualFocus !== null ? `${Math.round(manualFocus * 100)}%` : 'AUTO',
+      wb:
+        whiteBalanceTemperature !== null
+          ? `${Math.round(whiteBalanceTemperature)}K`
+          : 'AUTO',
+      ev: exposureBias === 0 ? '0.0' : `${exposureBias > 0 ? '+' : ''}${exposureBias.toFixed(1)}`,
+      raw: rawEnabled ? 'ON' : 'OFF',
+      auto: proIsActive ? 'RESET' : 'ACTIVE',
+      back: 'ROOT',
+    }),
+    [
+      exposureBias,
+      manualFocus,
+      manualISO,
+      manualShutter,
+      proIsActive,
+      rawEnabled,
+      whiteBalanceTemperature,
+    ],
+  );
+
+  const cycleLens = useCallback(async () => {
+    if (!cameraRef.current || facingLenses.length <= 1) return;
+
+    const currentIndex = facingLenses.findIndex(
+      (lens) => lens.id === activeLensId,
+    );
+    const nextIndex =
+      currentIndex < 0
+        ? 1 % facingLenses.length
+        : (currentIndex + 1) % facingLenses.length;
+    const nextLens = facingLenses[nextIndex];
+    if (!nextLens) return;
+
+    await cameraRef.current.setLens(nextLens.id);
+    setActiveLensId(nextLens.id);
+  }, [activeLensId, facingLenses]);
 
   const applyWheelAction = useCallback(
     (action: WheelAction | null) => {
-      if (!action) return;
+      if (!action || disabledRootActions.includes(action)) return;
 
       switch (action) {
         case 'photo':
-          setCaptureMode('photo');
+          if (!recording) {
+            setCaptureMode('photo');
+            void Haptics.notificationAsync(
+              Haptics.NotificationFeedbackType.Success,
+            );
+          }
           break;
         case 'video':
-          setCaptureMode('video');
+          if (!recording) {
+            setCaptureMode('video');
+            void Haptics.notificationAsync(
+              Haptics.NotificationFeedbackType.Success,
+            );
+          }
           break;
         case 'flash':
           cycleFlash();
@@ -342,14 +455,20 @@ export default function App() {
           setFacing((value) => (value === 'back' ? 'front' : 'back'));
           setActiveLensId(null);
           break;
-        case 'zoom':
-          setZoom((value) => (value < 0.12 ? 0.22 : 0));
+        case 'lens':
+          void cycleLens();
           break;
         case 'pro':
           break;
       }
     },
-    [cycleFlash, cycleTimer],
+    [
+      cycleFlash,
+      cycleLens,
+      cycleTimer,
+      disabledRootActions,
+      recording,
+    ],
   );
 
   const applyProWheelAction = useCallback(
@@ -419,25 +538,6 @@ export default function App() {
           setRawEnabled((value) => !value);
           break;
 
-        case 'lens': {
-          const facingLenses = nativeCapabilities.lenses.filter(
-            (lens) => lens.facing === facing,
-          );
-          if (facingLenses.length <= 1) return;
-
-          const currentIndex = facingLenses.findIndex(
-            (lens) => lens.id === activeLensId,
-          );
-          const nextIndex =
-            currentIndex < 0 ? 1 % facingLenses.length : (currentIndex + 1) % facingLenses.length;
-          const nextLens = facingLenses[nextIndex];
-          if (!nextLens) return;
-
-          await camera.setLens(nextLens.id);
-          setActiveLensId(nextLens.id);
-          break;
-        }
-
         case 'auto':
           await camera.resetControls();
           setManualISO(null);
@@ -452,9 +552,7 @@ export default function App() {
       }
     },
     [
-      activeLensId,
       disabledProActions,
-      facing,
       manualISO,
       manualShutter,
       nativeCapabilities,
@@ -501,26 +599,14 @@ export default function App() {
       }
       case 'raw':
         return `RAW · ${rawEnabled ? 'TURN OFF' : 'TURN ON'}`;
-      case 'lens': {
-        const facingLenses =
-          nativeCapabilities?.lenses.filter((lens) => lens.facing === facing) ?? [];
-        const currentIndex = facingLenses.findIndex(
-          (lens) => lens.id === activeLensId,
-        );
-        const nextIndex =
-          currentIndex < 0 ? 1 % Math.max(facingLenses.length, 1) : (currentIndex + 1) % Math.max(facingLenses.length, 1);
-        return `LENS · ${facingLenses[nextIndex]?.name ?? 'NEXT'}`;
-      }
       case 'auto':
         return 'AUTO · RESET PRO CONTROLS';
       case 'back':
         return 'BACK · RELEASE TO CLOSE';
     }
   }, [
-    activeLensId,
     captureMode,
     disabledProActions,
-    facing,
     nativeCapabilities,
     proAdjustment,
     proSelection,
@@ -529,28 +615,49 @@ export default function App() {
 
   const wheelStatus = useMemo(() => {
     if (wheelLayer === 'pro') return proStatus;
-    if (!wheelSelection) return 'DRAG TO A CONTROL';
+    if (!wheelSelection) {
+      return captureMode === 'photo'
+        ? 'PHOTO MODE · TAP SCREEN TO SHOOT'
+        : 'VIDEO MODE · TAP SCREEN TO RECORD';
+    }
+
+    if (disabledRootActions.includes(wheelSelection)) {
+      return `${wheelSelection.toUpperCase()} · UNAVAILABLE ON THIS CAMERA`;
+    }
 
     switch (wheelSelection) {
       case 'flash':
-        return `FLASH · ${flash.toUpperCase()}`;
+        return `FLASH · ${flash.toUpperCase()} → CYCLE`;
       case 'grid':
-        return `GRID · ${grid ? 'ON' : 'OFF'}`;
+        return `GRID · ${grid ? 'ON' : 'OFF'} → TOGGLE`;
       case 'timer':
-        return `TIMER · ${timerSeconds === 0 ? 'OFF' : `${timerSeconds}S`}`;
+        return `TIMER · ${timerSeconds === 0 ? 'OFF' : `${timerSeconds}S`} → CYCLE`;
       case 'flip':
-        return `CAMERA · ${facing.toUpperCase()}`;
+        return `CAMERA · ${facing.toUpperCase()} → FLIP`;
       case 'video':
-        return 'VIDEO';
+        return captureMode === 'video'
+          ? 'VIDEO MODE ACTIVE · TAP SCREEN TO RECORD'
+          : 'SWITCH TO VIDEO MODE';
       case 'photo':
-        return rawEnabled ? 'PHOTO · RAW ENABLED' : 'PHOTO';
-      case 'zoom':
-        return zoom < 0.12 ? 'ZOOM · 2×' : 'ZOOM · 1×';
+        return captureMode === 'photo'
+          ? rawEnabled
+            ? 'PHOTO MODE ACTIVE · RAW ON · TAP SCREEN TO SHOOT'
+            : 'PHOTO MODE ACTIVE · TAP SCREEN TO SHOOT'
+          : 'SWITCH TO PHOTO MODE';
+      case 'lens': {
+        const current =
+          facingLenses.find((lens) => lens.id === activeLensId)?.name;
+        return `LENS · ${current ?? 'DEFAULT'} → NEXT CAMERA`;
+      }
       case 'pro':
-        return 'PRO · KEEP DRAGGING';
+        return 'PRO · CONTINUE DRAG TO ENTER MANUAL CONTROLS';
     }
   }, [
+    activeLensId,
+    captureMode,
+    disabledRootActions,
     facing,
+    facingLenses,
     flash,
     grid,
     proStatus,
@@ -558,7 +665,6 @@ export default function App() {
     timerSeconds,
     wheelLayer,
     wheelSelection,
-    zoom,
   ]);
 
   const singleTap = useMemo(
@@ -822,7 +928,16 @@ export default function App() {
               layer={wheelLayer}
               selected={wheelSelection}
               proSelected={proSelection}
+              disabledRootActions={disabledRootActions}
               disabledProActions={disabledProActions}
+              activeRootActions={activeRootActions}
+              activeProActions={activeProActions}
+              rootStateLabels={rootStateLabels}
+              proStateLabels={proStateLabels}
+              centerTitle={captureMode.toUpperCase()}
+              centerSubtitle={
+                captureMode === 'photo' ? 'TAP TO SHOOT' : 'TAP TO RECORD'
+              }
               statusText={wheelStatus}
               adjustmentProgress={
                 wheelLayer === 'pro' &&
