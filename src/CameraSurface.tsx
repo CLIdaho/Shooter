@@ -114,7 +114,10 @@ export const CameraSurface = forwardRef<CameraSurfaceHandle, Props>(
       }, NATIVE_PREVIEW_TIMEOUT_MS);
 
       return () => clearTimeout(timeout);
-    }, [mode, nativeCandidate, onEngineStatus, onNativeError]);
+    // Callback identities can change when the parent re-renders. They must not
+    // restart the native-camera watchdog or clear a fallback decision.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mode, nativeCandidate]);
 
     function requireNative() {
       if (!nativeRef.current || nativeFailed) {
