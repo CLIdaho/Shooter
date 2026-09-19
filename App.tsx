@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import {
   Camera,
-  CameraView,
   useCameraPermissions,
 } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
@@ -21,12 +20,13 @@ import {
   GestureHandlerRootView,
 } from 'react-native-gesture-handler';
 import { GalleryScreen } from './src/GalleryScreen';
+import { CameraSurface, CameraSurfaceHandle } from './src/CameraSurface';
 import {
   RadialWheel,
   WheelAction,
   WHEEL_SEGMENTS,
 } from './src/RadialWheel';
-import { listShots, saveShot, Shot } from './src/storage';
+import { listShots, saveCapturedPhoto, saveShot, Shot } from './src/storage';
 
 type CaptureMode = 'photo' | 'video';
 type Facing = 'back' | 'front';
@@ -55,7 +55,7 @@ function actionFromVector(dx: number, dy: number): WheelAction | null {
 
 export default function App() {
   const [permission, requestPermission] = useCameraPermissions();
-  const cameraRef = useRef<CameraView>(null);
+  const cameraRef = useRef<CameraSurfaceHandle>(null);
 
   const [screen, setScreen] = useState<'camera' | 'gallery'>('camera');
   const [shots, setShots] = useState<Shot[]>([]);
@@ -95,15 +95,12 @@ export default function App() {
 
   const takePhotoNow = useCallback(async () => {
     if (!cameraRef.current) return;
-    const result = await cameraRef.current.takePictureAsync({
-      quality: 0.96,
-      shutterSound: true,
-    });
+    const result = await cameraRef.current.takePhoto();
 
     if (!result?.uri) return;
 
     fireVisualShutter();
-    await saveShot(result.uri, 'photo');
+    await saveCapturedPhoto(result.uri, result.rawUri);
     refreshShots();
   }, [fireVisualShutter, refreshShots]);
 
@@ -137,7 +134,7 @@ export default function App() {
 
     setRecording(true);
     try {
-      const result = await cameraRef.current.recordAsync();
+      const result = await cameraRef.current.startRecording();
       if (result?.uri) {
         await saveShot(result.uri, 'video');
         refreshShots();
@@ -366,13 +363,16 @@ export default function App() {
     <GestureHandlerRootView style={styles.root}>
       <GestureDetector gesture={cameraGesture}>
         <View style={styles.root}>
-          <CameraView
+          <CameraSurface
             ref={cameraRef}
             style={StyleSheet.absoluteFill}
             facing={facing}
-            mode={captureMode === 'video' ? 'video' : 'picture'}
+            mode={captureMode}
             flash={flash}
             zoom={zoom}
+            onNativeError={(error) => {
+              console.warn('[Shooter native camera]', error.code, error.message);
+            }}
           />
 
           {grid ? (
