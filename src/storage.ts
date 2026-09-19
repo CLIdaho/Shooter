@@ -7,6 +7,7 @@ export type Shot = {
   uri: string;
   kind: ShotKind;
   createdAt: number;
+  rawUri?: string;
 };
 
 const mediaDirectory = new Directory(Paths.document, 'shooter-media');
@@ -17,15 +18,23 @@ function ensureDirectory() {
   }
 }
 
+function rawCompanionFor(createdAt: number): File {
+  return new File(mediaDirectory, `${createdAt}-raw.dng`);
+}
+
 function parseShot(file: File): Shot | null {
   const match = /^(\d+)-(photo|video)\.(jpg|mp4)$/i.exec(file.name);
   if (!match) return null;
+
+  const createdAt = Number(match[1]);
+  const rawFile = rawCompanionFor(createdAt);
 
   return {
     name: file.name,
     uri: file.uri,
     kind: match[2] as ShotKind,
-    createdAt: Number(match[1]),
+    createdAt,
+    rawUri: rawFile.exists ? rawFile.uri : undefined,
   };
 }
 
@@ -49,6 +58,33 @@ export async function saveShot(sourceUri: string, kind: ShotKind): Promise<Shot>
   };
 }
 
+export async function saveCapturedPhoto(
+  sourceUri: string,
+  rawSourceUri?: string | null,
+): Promise<Shot> {
+  ensureDirectory();
+
+  const createdAt = Date.now();
+  const destination = new File(mediaDirectory, `${createdAt}-photo.jpg`);
+
+  await new File(sourceUri).copy(destination);
+
+  let rawUri: string | undefined;
+  if (rawSourceUri && rawSourceUri !== sourceUri) {
+    const rawDestination = rawCompanionFor(createdAt);
+    await new File(rawSourceUri).copy(rawDestination);
+    rawUri = rawDestination.uri;
+  }
+
+  return {
+    name: destination.name,
+    uri: destination.uri,
+    kind: 'photo',
+    createdAt,
+    rawUri,
+  };
+}
+
 export function listShots(): Shot[] {
   ensureDirectory();
 
@@ -64,5 +100,10 @@ export async function deleteShot(shot: Shot): Promise<void> {
   const file = new File(shot.uri);
   if (file.exists) {
     await file.delete();
+  }
+
+  const rawFile = rawCompanionFor(shot.createdAt);
+  if (rawFile.exists) {
+    await rawFile.delete();
   }
 }
