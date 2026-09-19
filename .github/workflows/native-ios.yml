@@ -1,0 +1,51 @@
+name: Native iOS
+
+on:
+  push:
+    branches:
+      - "build/**"
+    paths:
+      - "modules/shooter-camera/**"
+      - "src/CameraSurface.tsx"
+      - "App.tsx"
+      - "app.json"
+      - "package.json"
+      - ".github/workflows/native-ios.yml"
+  pull_request:
+    paths:
+      - "modules/shooter-camera/**"
+      - "src/CameraSurface.tsx"
+      - "App.tsx"
+      - "app.json"
+      - "package.json"
+      - ".github/workflows/native-ios.yml"
+  workflow_dispatch:
+
+jobs:
+  ios-debug:
+    runs-on: macos-latest
+    timeout-minutes: 35
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22.13.1
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Generate iOS project
+        run: npx expo prebuild --platform ios --non-interactive --clean
+
+      - name: Compile native iOS app
+        run: |
+          xcodebuild \
+            -workspace ios/Shooter.xcworkspace \
+            -scheme Shooter \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
