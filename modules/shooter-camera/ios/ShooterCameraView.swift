@@ -388,10 +388,6 @@ final class ShooterCameraView: ExpoView, AVCapturePhotoCaptureDelegate {
     captureSession.beginConfiguration()
     captureSession.sessionPreset = .photo
 
-    defer {
-      captureSession.commitConfiguration()
-    }
-
     do {
       try installInput(device: requestedDevice())
 
@@ -401,9 +397,12 @@ final class ShooterCameraView: ExpoView, AVCapturePhotoCaptureDelegate {
 
       photoOutput.maxPhotoQualityPrioritization = .quality
     } catch {
+      captureSession.commitConfiguration()
       emitError(code: "E_CAMERA_CONFIGURATION", message: error.localizedDescription)
       return
     }
+
+    captureSession.commitConfiguration()
 
     if !captureSession.isRunning {
       captureSession.startRunning()
