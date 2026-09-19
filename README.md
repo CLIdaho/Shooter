@@ -4,9 +4,9 @@ Shooter is a camera-first mobile app built around touch.
 
 ## 📱 Install Shooter on Android
 
-**[⬇️ Download Shooter-Test.apk](https://github.com/CLIdaho/Shooter/releases/download/android-test-20/Shooter-Test.apk)**
+**[⬇️ Download Shooter-Test.apk — Android Test #23](https://github.com/CLIdaho/Shooter/releases/download/android-test-23/Shooter-Test.apk)**
 
-Current standalone test build: **Android Test #20**. Download the APK directly on your Android phone, open it, and install it. **Expo Go and a computer are not required.**
+Current standalone test build: **Android Test #23**. Download the APK directly on your Android phone, open it, and install it. **Expo Go and a computer are not required.**
 
 If Android blocks the install, allow **Install unknown apps** for the browser or file manager you used to download the APK, then open it again.
 
@@ -23,7 +23,7 @@ The live camera is the interface.
 - **Single tap** — capture instantly
 - **Double tap** — toggle a fast zoom preset
 - **Pinch** — continuous zoom
-- **Long press** — materialize the radial control wheel under your finger
+- **Long press** — materialize the radial control wheel under the finger
 - **Hold + drag** — choose a camera control
 - **Release** — apply it and return to the live camera
 - **Swipe right from the left edge** — enter the local Shooter gallery
