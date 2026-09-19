@@ -20,18 +20,25 @@ The live image owns the screen. Permanent chrome should be reduced to state, not
 
 ## Root wheel
 
-The root ring intentionally stays small:
+The root ring contains only first-order camera decisions:
 
-- Photo
-- Video
+- Photo mode
+- Video mode
 - Flash
-- Grid
 - Timer
+- Grid
 - Front/back camera
-- Zoom
+- Lens
 - Pro
 
-There is still no permanent settings toolbar.
+Zoom is intentionally **not** duplicated in the wheel. Pinch owns continuous zoom and double-tap owns the fast zoom preset.
+
+Photo and Video are modes, not shutter buttons. The active mode stays lit, and the center hub explains the capture action:
+
+- `PHOTO · TAP TO SHOOT`
+- `VIDEO · TAP TO RECORD`
+
+Quick controls expose their current state directly on the wheel so a long press answers both “what is enabled?” and “what can I change?” without adding permanent camera chrome.
 
 ## Pro ring
 
@@ -43,9 +50,10 @@ Dragging through **Pro** transforms the wheel in-place. The same continuous gest
 - White-balance temperature
 - Exposure compensation
 - RAW
-- Physical/available lens cycling
 - Auto reset
-- Back/cancel
+- Back
+
+Lens selection lives on the root wheel because it is a camera/navigation control rather than a manual exposure control.
 
 Adjustable controls use radial distance as the value axis. Shooter previews the value beneath the wheel while the finger is held, then commits it on release. Unsupported controls remain visually disabled instead of pretending to work.
 
@@ -58,7 +66,11 @@ Photo mode prefers Shooter's local native camera module when it is present in a 
 - iOS: AVFoundation
 - Android: CameraX + Camera2 interop
 
-The Expo camera surface remains a fallback and currently handles video while native video capture is still being built.
+The Expo camera surface remains the safety fallback and currently handles video while native video capture is still being built.
+
+If the native Android preview never reaches a real streaming state, Shooter retries the alternate CameraX preview implementation and then falls back to Expo Camera rather than leaving a black screen.
+
+If native photo capture itself throws, Shooter switches to the Expo camera and retries that same capture so Photo does not silently fail while Video continues to work.
 
 ## Gallery
 
@@ -70,7 +82,8 @@ Captured media is copied from the camera cache into the app's document directory
 
 1. Camera always stays primary.
 2. Controls appear at the point of intent.
-3. Release returns the user to photography.
-4. Common actions become muscle memory.
-5. Unsupported hardware features never masquerade as working controls.
-6. Offline is the default, not a degraded mode.
+3. Modes, actions, and manual controls must look and behave differently.
+4. Release returns the user to photography.
+5. Common actions become muscle memory.
+6. Unsupported hardware features never masquerade as working controls.
+7. Offline is the default, not a degraded mode.
