@@ -2,6 +2,16 @@
 
 Shooter is a camera-first mobile app built around touch.
 
+## 📱 Install Shooter on Android
+
+**[⬇️ Download Shooter-Test.apk](https://github.com/CLIdaho/Shooter/releases/download/android-test-20/Shooter-Test.apk)**
+
+Current standalone test build: **Android Test #20**. Download the APK directly on your Android phone, open it, and install it. **Expo Go and a computer are not required.**
+
+If Android blocks the install, allow **Install unknown apps** for the browser or file manager you used to download the APK, then open it again.
+
+You can also view all Android builds on the [Shooter Releases page](https://github.com/CLIdaho/Shooter/releases).
+
 ## The rule
 
 **No permanent shutter button. No gallery button on the camera.**
