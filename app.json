@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "Shooter",
+    "slug": "shooter",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.aeralabs.shooter",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Shooter needs the camera to capture photos and video.",
+        "NSMicrophoneUsageDescription": "Shooter needs the microphone when you record video."
+      }
+    },
+    "android": {
+      "package": "com.aeralabs.shooter",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Shooter to use your camera.",
+          "microphonePermission": "Allow Shooter to use your microphone.",
+          "recordAudioAndroid": true
+        }
+      ]
+    ]
+  }
+}
