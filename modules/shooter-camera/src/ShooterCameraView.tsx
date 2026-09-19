@@ -61,19 +61,20 @@ export type ShooterNativeCameraViewProps = ViewProps & {
   }) => void;
 };
 
+type NativeCameraComponent = React.ComponentType<
+  ShooterNativeCameraViewProps &
+    React.RefAttributes<ShooterNativeCameraViewHandle>
+>;
+
 const nativeModule = requireOptionalNativeModule('ShooterCamera');
 
-let NativeView:
-  | React.ComponentType<
-      ShooterNativeCameraViewProps & {
-        ref?: React.Ref<ShooterNativeCameraViewHandle>;
-      }
-    >
-  | null = null;
+let NativeView: NativeCameraComponent | null = null;
 
 if (nativeModule) {
   try {
-    NativeView = requireNativeViewManager('ShooterCamera') as typeof NativeView;
+    NativeView = requireNativeViewManager(
+      'ShooterCamera',
+    ) as unknown as NativeCameraComponent;
   } catch {
     NativeView = null;
   }
@@ -85,7 +86,8 @@ export const ShooterNativeCameraView = forwardRef<
   ShooterNativeCameraViewHandle,
   ShooterNativeCameraViewProps
 >(function ShooterNativeCameraView(props, ref) {
-  if (!NativeView) return null;
+  const Component = NativeView;
+  if (!Component) return null;
 
-  return <NativeView {...props} ref={ref} />;
+  return <Component {...props} ref={ref} />;
 });
