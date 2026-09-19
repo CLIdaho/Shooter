@@ -34,6 +34,15 @@
           "recordAudioAndroid": true
         }
       ]
-    ]
+    ],
+    "androidStatusBar": {
+      "backgroundColor": "#000000",
+      "barStyle": "light-content",
+      "translucent": true
+    },
+    "androidNavigationBar": {
+      "backgroundColor": "#000000",
+      "barStyle": "light-content"
+    }
   }
 }
