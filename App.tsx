@@ -20,7 +20,11 @@ import {
   GestureHandlerRootView,
 } from 'react-native-gesture-handler';
 import type { CameraCapabilities } from './modules/shooter-camera';
-import { CameraSurface, CameraSurfaceHandle } from './src/CameraSurface';
+import {
+  CameraEngineStatus,
+  CameraSurface,
+  CameraSurfaceHandle,
+} from './src/CameraSurface';
 import { GalleryScreen } from './src/GalleryScreen';
 import {
   PRO_WHEEL_SEGMENTS,
@@ -141,6 +145,8 @@ export default function App() {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [zoom, setZoom] = useState(0);
   const [recording, setRecording] = useState(false);
+  const [cameraEngineStatus, setCameraEngineStatus] =
+    useState<CameraEngineStatus | null>(null);
 
   const [nativeCapabilities, setNativeCapabilities] =
     useState<CameraCapabilities | null>(null);
@@ -762,6 +768,7 @@ export default function App() {
             zoom={zoom}
             rawEnabled={rawEnabled}
             onCapabilities={setNativeCapabilities}
+            onEngineStatus={setCameraEngineStatus}
             onNativeError={(error) => {
               console.warn('[Shooter native camera]', error.code, error.message);
             }}
@@ -789,6 +796,13 @@ export default function App() {
             </View>
 
             <View style={styles.hudBottom}>
+              {cameraEngineStatus?.state !== 'ready' ? (
+                <Text style={styles.engineStatus}>
+                  {cameraEngineStatus?.state === 'fallback'
+                    ? `SAFE PREVIEW · ${cameraEngineStatus.reason ?? 'NATIVE FALLBACK'}`
+                    : 'NATIVE CAMERA · STARTING'}
+                </Text>
+              ) : null}
               <Text style={styles.hudHint}>
                 HOLD FOR CONTROLS · SWIPE FROM LEFT FOR SHOTS
               </Text>
@@ -916,6 +930,15 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     paddingBottom: 12,
+  },
+  engineStatus: {
+    marginBottom: 8,
+    color: 'rgba(255,255,255,0.78)',
+    fontSize: 8,
+    letterSpacing: 1.15,
+    fontWeight: '700',
+    textShadowColor: 'rgba(0,0,0,0.55)',
+    textShadowRadius: 8,
   },
   hudHint: {
     color: 'rgba(255,255,255,0.52)',
