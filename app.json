@@ -16,6 +16,10 @@
     },
     "android": {
       "package": "com.aeralabs.shooter",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/shooter-icon-foreground.png",
+        "backgroundColor": "#000000"
+      },
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
