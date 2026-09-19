@@ -1,7 +1,6 @@
 import {
   CameraView,
   type CameraType,
-  type FlashMode,
 } from 'expo-camera';
 import React, {
   forwardRef,
@@ -39,7 +38,7 @@ type Props = {
   style?: StyleProp<ViewStyle>;
   mode: CameraSurfaceMode;
   facing: CameraType;
-  flash: FlashMode;
+  flash: 'off' | 'on' | 'auto';
   zoom: number;
   rawEnabled?: boolean;
   onCapabilities?: (capabilities: CameraCapabilities) => void;
