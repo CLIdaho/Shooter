@@ -203,10 +203,13 @@ final class ShooterCameraView: ExpoView, AVCapturePhotoCaptureDelegate {
       throw CameraEngineError.unsupported("Focus point is not supported by this camera.")
     }
 
-    let normalized = CGPoint(
-      x: min(max(x, 0), 1),
-      y: min(max(y, 0), 1)
+    let normalizedX = min(max(x, 0), 1)
+    let normalizedY = min(max(y, 0), 1)
+    let layerPoint = CGPoint(
+      x: bounds.width * normalizedX,
+      y: bounds.height * normalizedY
     )
+    let normalized = previewLayer.captureDevicePointConverted(fromLayerPoint: layerPoint)
 
     try device.lockForConfiguration()
     defer { device.unlockForConfiguration() }
@@ -359,7 +362,7 @@ final class ShooterCameraView: ExpoView, AVCapturePhotoCaptureDelegate {
       }
 
       if let error = error ?? pending.failure {
-        pending.promise.reject("E_CAPTURE", error.localizedDescription, error)
+        pending.promise.reject("E_CAPTURE", error.localizedDescription)
         return
       }
 
@@ -368,10 +371,11 @@ final class ShooterCameraView: ExpoView, AVCapturePhotoCaptureDelegate {
         return
       }
 
-      pending.promise.resolve([
-        "uri": primaryUri,
-        "rawUri": pending.rawUri as Any
-      ])
+      var result: [String: Any] = ["uri": primaryUri]
+      if let rawUri = pending.rawUri {
+        result["rawUri"] = rawUri
+      }
+      pending.promise.resolve(result)
     }
   }
 
@@ -400,8 +404,6 @@ final class ShooterCameraView: ExpoView, AVCapturePhotoCaptureDelegate {
       emitError(code: "E_CAMERA_CONFIGURATION", message: error.localizedDescription)
       return
     }
-
-    captureSession.commitConfiguration()
 
     if !captureSession.isRunning {
       captureSession.startRunning()
@@ -503,8 +505,7 @@ final class ShooterCameraView: ExpoView, AVCapturePhotoCaptureDelegate {
       [
         "id": lens.uniqueID,
         "name": lens.localizedName,
-        "facing": positionName(lens.position),
-        "focalLengths": lens.activeFormat.videoFieldOfView
+        "facing": positionName(lens.position)
       ]
     }
 
