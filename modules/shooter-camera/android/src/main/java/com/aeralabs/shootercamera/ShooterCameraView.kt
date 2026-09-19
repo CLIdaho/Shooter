@@ -297,9 +297,9 @@ class ShooterCameraView(
       }
 
       rawEnabled = true
-      bindCamera {
+      bindCamera(onBound = {
         captureBoundPhoto(promise)
-      }
+      })
       return
     }
 
